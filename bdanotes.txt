@@ -1,0 +1,477 @@
+SLIP 1 – NoSQL (MongoDB CRUD)
+
+
+sudo systemctl start mongod
+sudo systemctl status mongod
+
+mongo OR mongosh
+
+use student_db
+
+db.Students.insertMany([
+   {name: "John", dept: "CS", marks: 85},
+   {name: "Alice", dept: "IT", marks: 78},
+   {name: "Bob", dept: "CS", marks: 92},
+   {name: "Carol", dept: "ECE", marks: 65},
+   {name: "David", dept: "IT", marks: 88}
+])
+
+// 2. Update marks of one student
+db.Students.updateOne(
+   {name: "Carol"},
+   {$set: {marks: 75}}
+)
+
+// 3. Delete one record
+db.Students.deleteOne({name: "Bob"})
+
+// 4. Display all records
+db.Students.find().pretty()
+
+-----------------------------------------------------------
+SLIP 2 – NoSQL (Querying Unstructured JSON Data)
+
+sudo systemctl start mongod
+sudo systemctl status mongod
+
+mongo / mongosh
+
+gedit products.json
+[
+  {"name": "Laptop", "category": "Electronics", "price": 55000},
+  {"name": "Mouse", "category": "Electronics", "price": 1200},
+  {"name": "Smartphone", "category": "Electronics", "price": 15000},
+  {"name": "Table", "category": "Furniture", "price": 8000}
+]
+
+mongoimport --db product_db --collection products --file products.json --jsonArray
+
+mongosh
+
+use product_db
+
+// 1. Electronics products
+db.products.find({ category: "Electronics" }).pretty()
+
+// 2. Count items priced above ₹10,000
+db.products.countDocuments({ price: { $gt: 10000 } })
+
+------------
+PYMONGO
+--------------
+
+sudo systemctl start mongod
+sudo systemctl status mongod
+
+gedit products.json
+[
+  {"name": "Laptop", "category": "Electronics", "price": 55000},
+  {"name": "Mouse", "category": "Electronics", "price": 1200},
+  {"name": "Smartphone", "category": "Electronics", "price": 15000},
+  {"name": "Table", "category": "Furniture", "price": 8000},
+  {"name": "Chair", "category": "Furniture", "price": 7000}
+]
+
+gedit slip2.py
+----
+import json
+from pymongo import MongoClient
+
+client = MongoClient('mongodb://localhost:27017/')
+
+db = client['product_db']
+collection = db['products']
+
+# Load JSON file and insert into MongoDB
+with open('products.json') as f:
+    data = json.load(f)
+    collection.insert_many(data)
+
+# Display all products in "Electronics" category
+print("\nProducts in Electronics Category:")
+electronics = collection.find({"category": "Electronics"})
+for product in electronics:
+    print(product)
+
+# Count products priced above ₹10,000
+count = collection.count_documents({"price": {"$gt": 10000}})
+print(f"\nItems above ₹10,000: {count}")
+---
+
+python3 slip2.py
+------------------------------------------------------------
+
+SLIP 3 – NoSQL (Aggregation Pipeline)
+
+sudo systemctl start mongod
+sudo systemctl status mongod
+
+mongo
+
+use employee_db
+
+db.employees.insertMany([
+  { name: "John", department: "IT", salary: 50000 },
+  { name: "Alice", department: "HR", salary: 45000 },
+  { name: "Bob", department: "IT", salary: 60000 },
+  { name: "Carol", department: "Finance", salary: 70000 },
+  { name: "David", department: "Finance", salary: 65000 }
+])
+
+// Group by department and calculate average salary
+db.employees.aggregate([
+  {
+    $group: {
+      _id: "$department",
+      averageSalary: { $avg: "$salary" }
+    }
+  },
+  {
+    $sort: { averageSalary: -1 }  // Sort in descending order
+  }
+])
+
+--------------------------------------------------------------
+
+SLIP 4 – NoSQL (API Operations using PyMongo)
+
+sudo systemctl start mongod
+sudo systemctl status mongod
+
+gedit slip4.py
+
+---
+from pymongo import MongoClient
+
+# 1. Connect to MongoDB
+client = MongoClient('mongodb://localhost:27017/')
+db = client['company_db']
+employees = db['employees']
+
+# Insert 3 employee documents
+employee_data = [
+    {"name": "John", "department": "IT", "salary": 60000},
+    {"name": "Alice", "department": "HR", "salary": 45000},
+    {"name": "Bob", "department": "Finance", "salary": 75000}
+]
+employees.insert_many(employee_data)
+
+# Retrieve records where salary > 50,000
+high_earners = employees.find({"salary": {"$gt": 50000}})
+print("Employees with salary > 50,000:")
+for emp in high_earners:
+    print(emp)
+
+# Update one record
+employees.update_one(
+    {"name": "Alice"},
+    {"$set": {"salary": 52000}}
+)
+
+# Print all documents
+print("\nAll employees:")
+for emp in employees.find():
+    print(emp)
+---
+
+python3 slip4.py
+
+
+------------------------------------------------------------
+SLIP 5 - HIVE BASIC QUERYING
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+./run-hivemetastore.sh -s start
+./run-hiveserver2.sh -s start
+hive
+
+CREATE TABLE movies (
+    title STRING,
+    type STRING,
+    release_year INT,
+    country STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+LOAD DATA LOCAL INPATH '/home/talentum/movies.csv' INTO TABLE movies;
+
+SELECT country, COUNT(*) AS movie_count
+FROM movies
+GROUP BY country;
+
+SELECT release_year, COUNT(*) AS movie_count
+FROM movies
+GROUP BY release_year
+ORDER BY release_year DESC
+LIMIT 5;
+---------------------------------------------------------------------
+Slip 6 - HIVE SORTING AND AGGREGATION
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+./run-hivemetastore.sh -s start
+./run-hiveserver2.sh -s start
+hive
+
+CREATE TABLE sales_data (
+ region STRING,
+ product STRING,
+ amount DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ',';
+
+
+LOAD DATA LOCAL INPATH '/home/talentum/sales_data.csv' INTO TABLE sales_data;
+
+-- 1. Total sales per region
+SELECT region, SUM(amount) as total_sales
+FROM sales_data
+GROUP BY region;
+
+-- 2. Sort by total sales descending
+SELECT region, SUM(amount) as total_sales
+FROM sales_data
+GROUP BY region
+ORDER BY total_sales DESC;
+
+-----------------------------------------------------------------------------
+
+------------------------------------------------------------
+SLIP 7 - HIVE (JOINS AND FILTERING)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+./run-hivemetastore.sh -s start
+./run-hiveserver2.sh -s start
+hive
+
+-- Create customers table
+CREATE TABLE customers (
+    cust_id INT,
+    name STRING,
+    city STRING
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+INSERT INTO TABLE customers VALUES
+(101, 'John', 'Pune'),
+(102, 'Alice', 'Mumbai'),
+(103, 'Bob', 'Delhi'),
+(104, 'Carol', 'Chennai');
+
+-- Create orders table
+CREATE TABLE orders (
+    order_id INT,
+    cust_id INT,
+    amount DOUBLE
+)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+
+INSERT INTO TABLE orders VALUES
+(501, 101, 2000.50),
+(502, 102, 3500.00),
+(503, 101, 1800.00),
+(504, 103, 2200.75),
+(505, 101, 1500.25);
+
+LOAD DATA LOCAL INPATH '/home/talentum/customers.csv'
+INTO TABLE customers;
+
+LOAD DATA LOCAL INPATH '/home/talentum/orders.csv'
+INTO TABLE orders;
+
+-- Perform INNER JOIN to find total order amount per customer
+SELECT c.cust_id, c.name, SUM(o.amount) AS total_amount
+FROM customers c
+JOIN orders o
+ON c.cust_id = o.cust_id
+GROUP BY c.cust_id, c.name
+ORDER BY total_amount DESC;
+
+------------------------------------------------------------
+SLIP 8 – HIVE (USER DEFINED FUNCTION - UDF)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+./run-hivemetastore.sh -s start
+./run-hiveserver2.sh -s start
+hive
+
+gedit UpperCaseUDF.java
+
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.apache.hadoop.io.Text;
+public class UpperCaseUDF extends UDF {
+    public Text evaluate(Text input) {
+        if (input == null) return null;
+        return new Text(input.toString().toUpperCase());
+    }
+}
+
+javac -cp "$(hadoop classpath):/home/talentum/hive/lib/*" UpperCaseUDF.java
+jar -cvf uppercase-udf.jar UpperCaseUDF.class
+
+IN HIVE THEN 
+-----
+ADD JAR /home/talentum/uppercase-udf.jar;
+CREATE TEMPORARY FUNCTION uppercase AS 'UpperCaseUDF';
+
+SELECT uppercase(title) AS upper_title, type, release_year
+FROM movies;
+
+--------------------------------------------------------------------------
+SLIP 9 – PIG (BASIC OPERATIONS)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+
+gedit students.txt
+John,85
+Alice,78
+Bob,65
+Carol,92
+David,55
+
+hdfs dfs -mkdir /user
+hdfs dfs -mkdir /user/talentum
+
+hdfs dfs -put students.txt /user/talentum/
+
+hdfs dfs -ls /user/talentum 
+
+pig
+-- Load student data
+students = LOAD '/user/talentum/students.txt' USING PigStorage(',')
+          AS (name:chararray, marks:int);
+
+-- Filter students with marks > 70
+good_students = FILTER students BY marks > 70;
+
+-- Display names and marks
+result = FOREACH good_students GENERATE name, marks;
+
+-- Store or display results
+DUMP result;
+----------------------------------------------------------------
+
+SLIP 10 – PIG (GROUPING AND AGGREGATION)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+
+gedit sales_data.txt
+Electronics,Laptop,50000
+Electronics,TV,35000
+Clothing,Shirt,1200
+Clothing,Jeans,2500
+Grocery,Rice,900
+
+hdfs dfs -mkdir /user/talentum     # only if not already created
+hdfs dfs -put sales_data.txt /user/talentum/
+
+pig
+
+sales = LOAD '/user/talentum/sales_data.txt' USING PigStorage(',')
+        AS (category:chararray, product:chararray, amount:double);
+
+-- Group by category
+grouped_sales = GROUP sales BY category;
+
+-- Calculate average amount within each category
+avg_sales = FOREACH grouped_sales
+            GENERATE group AS category, AVG(sales.amount) AS avg_amount;
+
+-- Display results
+DUMP avg_sales;
+------------------------------------------------------------------
+
+SLIP 11 – PIG (JOIN OPERATION)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+
+gedit employee_details.txt
+101,John,1
+102,Alice,2
+103,Bob,1
+104,Carol,3
+
+gedit department.txt
+1,HR
+2,Finance
+3,IT
+
+hdfs dfs -mkdir /user/talentum
+hdfs dfs -put employee_details.txt /user/talentum/
+hdfs dfs -put department.txt /user/talentum/
+
+hdfs dfs -ls /user/talentum/
+
+pig
+
+-- Load datasets
+employees = LOAD '/user/talentum/employee_details.txt' USING PigStorage(',')
+             AS (emp_id:int, name:chararray, dept_id:int);
+
+departments = LOAD '/user/talentum/department.txt' USING PigStorage(',')
+              AS (dept_id:int, dept_name:chararray);
+
+-- Perform join on dept_id
+joined_data = JOIN employees BY dept_id, departments BY dept_id;
+
+-- Generate final result (employee name + department name)
+result = FOREACH joined_data GENERATE employees::name, departments::dept_name;
+
+-- Display results
+DUMP result;
+-------------------------------------------------------------
+
+Slip 12 – Pig (Sorting and Filtering)
+
+./run-hdfs.sh -s start
+./run-yarn.sh -s start
+jps
+
+gedit movies.txt
+Money Heist,TV Show,2021,8.5
+Avengers,Movie,2019,9.0
+Dark,TV Show,2020,8.8
+Friends,TV Show,1994,9.2
+Lost in Space,TV Show,2021,7.9
+Wednesday,TV Show,2022,8.0
+
+
+hdfs dfs -mkdir /user/talentum     # only if not already created
+hdfs dfs -put movies.txt /user/talentum/
+
+pig
+
+movies = LOAD '/user/talentum/movies.txt' USING PigStorage(',')
+         AS (title:chararray, type:chararray, release_year:int, rating:double);
+
+-- Filter only TV Shows
+tv_shows = FILTER movies BY type == 'TV Show';
+
+-- Sort by release year descending
+sorted_shows = ORDER tv_shows BY release_year DESC;
+
+-- Get top 10 results
+top_10 = LIMIT sorted_shows 10;
+
+-- Display results
+DUMP top_10;
